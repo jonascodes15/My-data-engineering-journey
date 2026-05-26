@@ -2,10 +2,11 @@
 # coding: utf-8
 
 import argparse
-import os
 import time
 import pandas as pd
+import urllib.request
 from sqlalchemy import create_engine
+from pathlib import Path
 
 
 def main(params):
@@ -23,17 +24,29 @@ def main(params):
     csv_name_1 = 'output_taxi.csv'
     csv_name_2 = 'output_zones.csv'
 
-    print("Downloading Taxi CSV...")
-    result1 = os.system(f"wget {url_1} -O {csv_name_1}")
-    if result1 != 0:
-        print(f"Error downloading taxi data. Exit code: {result1}")
-        return
+    # Download Taxi CSV if not already present
+    if not Path(csv_name_1).exists():
+        print(f"Downloading Taxi CSV from {url_1}...")
+        try:
+            urllib.request.urlretrieve(url_1, csv_name_1)
+            print(f"Successfully downloaded {csv_name_1}")
+        except Exception as e:
+            print(f"Error downloading taxi data: {e}")
+            return
+    else:
+        print(f"{csv_name_1} already exists, skipping download")
 
-    print("Downloading Zones CSV...")
-    result2 = os.system(f"wget {url_2} -O {csv_name_2}")
-    if result2 != 0:
-        print(f"Error downloading zones data. Exit code: {result2}")
-        return
+    # Download Zones CSV if not already present
+    if not Path(csv_name_2).exists():
+        print(f"Downloading Zones CSV from {url_2}...")
+        try:
+            urllib.request.urlretrieve(url_2, csv_name_2)
+            print(f"Successfully downloaded {csv_name_2}")
+        except Exception as e:
+            print(f"Error downloading zones data: {e}")
+            return
+    else:
+        print(f"{csv_name_2} already exists, skipping download")
 
     # Connect to PostgreSQL
     engine = create_engine(f'postgresql://{user}:{password}@{host}:{port}/{db}')
@@ -65,10 +78,14 @@ def main(params):
     print(f"Completed ingestion for {table_name_1}")
 
     # --- Ingest Zones Data (small file, no chunking needed) ---
+    print(f"\nIngesting zones data into {table_name_2}...")
     zones = pd.read_csv(csv_name_2)
     zones.head(0).to_sql(name=table_name_2, con=engine, if_exists='replace')
     zones.to_sql(name=table_name_2, con=engine, if_exists='append')
     print(f"Completed ingestion for {table_name_2}")
+    
+    # Clean up database connection
+    engine.dispose()
 
 
 if __name__ == '__main__':

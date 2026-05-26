@@ -65,10 +65,18 @@ This starts PostgreSQL and PgAdmin in the background.
 docker build -t taxi_ingest:v001 .
 ```
 
-### Step 4: Run Data Ingestion
+### Step 4: Find Network Name
+First, find the network created by docker-compose:
+```bash
+docker network ls
+```
+Look for a network with a name like `week_1_basics_and_setup_pg_network` or similar.
+
+### Step 5: Run Data Ingestion
+Replace `<network-name>` with the network name from Step 4:
 ```bash
 docker run -it \
-  --network=week_1_basics_and_setup_pg_network \
+  --network=<network-name> \
   taxi_ingest:v001 \
     --user=root \
     --password=root \
@@ -111,4 +119,30 @@ SELECT COUNT(*) FROM yellow_taxi_zone_data;
 
 **Data Chunking**: Large CSV files are processed in 100k-row chunks to avoid memory issues.
 
-**Error Handling**: The ingestion script validates downloads and gracefully handles failures.
+---
+
+## Troubleshooting
+
+### Windows Compatibility
+Both the ingestion script and notebook now use Python's `urllib` instead of `wget`, making them Windows-compatible. The code automatically downloads CSVs if they don't exist locally.
+
+### Connection Issues
+If you get "could not connect to server", verify:
+1. Docker services are running: `docker ps`
+2. PostgreSQL container is healthy: `docker logs pgdatabase`
+3. You're using the correct network name from `docker network ls`
+4. Host is set to `pgdatabase` (not `localhost`)
+
+### Download Failures
+- Check internet connection
+- Verify URLs are accessible in your browser
+- The script will skip downloads if files already exist locally
+- Check available disk space for large datasets
+
+### Port Conflicts
+If port 5432 is already in use, edit `docker-compose.yaml`:
+```yaml
+ports:
+  - "5433:5432"  # Use 5433 instead
+```
+Then update connection strings to use port 5433.
