@@ -24,10 +24,16 @@ def main(params):
     csv_name_2 = 'output_zones.csv'
 
     print("Downloading Taxi CSV...")
-    os.system(f"wget {url_1} -O {csv_name_1}")
+    result1 = os.system(f"wget {url_1} -O {csv_name_1}")
+    if result1 != 0:
+        print(f"Error downloading taxi data. Exit code: {result1}")
+        return
 
     print("Downloading Zones CSV...")
-    os.system(f"wget {url_2} -O {csv_name_2}")
+    result2 = os.system(f"wget {url_2} -O {csv_name_2}")
+    if result2 != 0:
+        print(f"Error downloading zones data. Exit code: {result2}")
+        return
 
     # Connect to PostgreSQL
     engine = create_engine(f'postgresql://{user}:{password}@{host}:{port}/{db}')

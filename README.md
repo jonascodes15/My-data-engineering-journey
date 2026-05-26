@@ -1,2 +1,114 @@
-# my-data-engineering-zoomcamp
-starting with Docker workshop codespaces
+# My Data Engineering Journey
+
+## Week 1: Docker & PostgreSQL Basics
+
+This week covers foundational data engineering concepts: containerization with Docker, PostgreSQL databases, and data ingestion pipelines.
+
+---
+
+## Architecture Overview
+
+The project uses Docker to containerize PostgreSQL and PgAdmin, with a Python ingestion script that loads taxi data into the database. All services are orchestrated using `docker-compose`.
+
+---
+
+## Components
+
+### 1. **Dockerfile**
+- Builds a custom Docker image based on Python 3.11-slim
+- Installs dependencies: pandas, sqlalchemy, psycopg2-binary
+- Copies and runs the `ingest_data.py` script
+
+### 2. **ingest_data.py**
+- Command-line ingestion script that downloads and processes CSV data
+- Chunks large files (100,000 rows per chunk) for memory efficiency
+- Accepts arguments via argparse for flexibility:
+  - `--user`, `--password`, `--host`, `--port`, `--db`
+  - `--table_name_1`, `--table_name_2` (supports two tables)
+  - `--url_1`, `--url_2` (download URLs)
+- Includes error handling for failed downloads
+
+### 3. **docker-compose.yaml**
+Orchestrates two services:
+- **pgdatabase**: PostgreSQL 16 with persistent volume storage
+- **pgadmin**: PgAdmin 8.6 web UI for database management
+- Automatic networking between services on `pg_network`
+
+### 4. **upload-data.ipynb**
+Jupyter notebook for interactive data exploration and testing. Contains:
+- CSV loading and inspection
+- Data type conversions (datetime parsing)
+- Chunked insertion into PostgreSQL
+- DDL generation for table schema
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Docker Desktop installed
+- Working directory: `week_1_basics_and_setup/`
+
+### Step 1: Start Services
+```bash
+docker-compose up -d
+```
+This starts PostgreSQL and PgAdmin in the background.
+
+### Step 2: Access PgAdmin
+- Open browser: `http://localhost:8080`
+- Login: `admin@admin.com` / `root`
+- Add new server connection to `pgdatabase:5432`
+
+### Step 3: Build Ingestion Image
+```bash
+docker build -t taxi_ingest:v001 .
+```
+
+### Step 4: Run Data Ingestion
+```bash
+docker run -it \
+  --network=week_1_basics_and_setup_pg_network \
+  taxi_ingest:v001 \
+    --user=root \
+    --password=root \
+    --host=pgdatabase \
+    --port=5432 \
+    --db=ny_taxi \
+    --table_name_1=yellow_taxi_data \
+    --table_name_2=yellow_taxi_zone_data \
+    --url_1="https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2024-01.csv" \
+    --url_2="https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv"
+```
+
+### Step 5: Verify Data
+In PgAdmin, run:
+```sql
+SELECT COUNT(*) FROM yellow_taxi_data;
+SELECT COUNT(*) FROM yellow_taxi_zone_data;
+```
+
+---
+
+## Docker Commands Reference
+
+| Command | Purpose |
+|---------|---------|
+| `docker-compose up -d` | Start services in background |
+| `docker-compose down` | Stop and remove containers |
+| `docker-compose logs -f pgdatabase` | View database logs |
+| `docker ps -a` | List all containers |
+| `docker build -t taxi_ingest:v001 .` | Build custom image |
+| `docker rm $(docker ps -q -f status=exited)` | Clean up stopped containers |
+
+---
+
+## Key Concepts
+
+**Docker Volumes**: The `-v` flag in docker-compose mounts `ny_taxi_postgres_data/` to persist data beyond container lifecycle.
+
+**Networking**: docker-compose automatically creates an isolated network (`pg_network`) allowing services to communicate by service name (e.g., `pgdatabase`).
+
+**Data Chunking**: Large CSV files are processed in 100k-row chunks to avoid memory issues.
+
+**Error Handling**: The ingestion script validates downloads and gracefully handles failures.
